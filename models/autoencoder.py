@@ -1,3 +1,7 @@
+"""
+Code referenced from https://www.geeksforgeeks.org/ml-autoencoder-with-tensorflow-2-0/
+
+"""
 from __future__ import absolute_import 
 from __future__ import division 
 from __future__ import print_function 
@@ -25,12 +29,16 @@ class Encoder(tf.keras.layers.Layer):
     def __init__(self,n_dims,name ='encoder',**kwargs): 
         super(Encoder, self).__init__(name = name, **kwargs) 
         self.n_dims = n_dims 
-        self.n_layers = 1
-        self.encode_layer = layers.Dense(n_dims, activation ='relu') 
+        self.n_layers = len(n_dims)
+        self.encode_layer = list()
+        for x in range(0,self.n_layers):
+            self.encode_layer.append(layers.Dense(n_dims[x], activation ='relu'))
 
     @tf.function
     def call(self, inputs): 
-        return self.encode_layer(inputs) 
+        for x in range(0,self.n_layers):
+            inputs = self.encode_layer[x](inputs)
+        return inputs 
 
 class Decoder(tf.keras.layers.Layer): 
     '''Decodes a digit from the MNIST dataset'''
@@ -38,25 +46,27 @@ class Decoder(tf.keras.layers.Layer):
     def __init__(self,n_dims,name ='decoder',**kwargs): 
         super(Decoder, self).__init__(name = name, **kwargs) 
         self.n_dims = n_dims 
-        self.n_layers = len(n_dims) 
-        self.decode_middle = layers.Dense(n_dims[0], activation ='relu') 
-        self.recon_layer = layers.Dense(n_dims[1], activation ='sigmoid') 
+        self.n_layers = len(n_dims)
+        self.decode_middle = list()
+        for x in range(0,self.n_layers-1):
+            self.decode_middle.append(layers.Dense(n_dims[x], activation ='relu'))
+        self.recon_layer = layers.Dense(n_dims[len(n_dims)-1], activation ='sigmoid') 
 
     @tf.function
-    def call(self, inputs): 
-        x = self.decode_middle(inputs) 
-        return self.recon_layer(x) 
+    def call(self, inputs):
+        for x in range(0,self.n_layers-1):
+            inputs = self.decode_middle[x](inputs) 
+        return self.recon_layer(inputs) 
 
 
 
 class Autoencoder(tf.keras.Model): 
     '''Vanilla Autoencoder for MNIST digits'''
     
-    def __init__(self,n_dims =[200, 392, 784],name ='autoencoder',**kwargs): 
+    def __init__(self,n_dims_encoder =[200],n_dims_decoder = [392, 784],name ='autoencoder',**kwargs): 
         super(Autoencoder, self).__init__(name = name, **kwargs) 
-        self.n_dims = n_dims 
-        self.encoder = Encoder(n_dims[0]) 
-        self.decoder = Decoder([n_dims[1], n_dims[2]]) 
+        self.encoder = Encoder(n_dims_encoder) 
+        self.decoder = Decoder(n_dims_decoder) 
     
     @tf.function
     def call(self, inputs):
@@ -87,7 +97,7 @@ optimizer = tf.optimizers.Adam(learning_rate = 0.01)
 mse_loss = tf.keras.losses.MeanSquaredError() 
 loss_metric = tf.keras.metrics.Mean() 
 
-ae = Autoencoder([200, 392, 784]) 
+ae = Autoencoder([200],[392, 784]) 
 ae.compile(optimizer = tf.optimizers.Adam(0.01), 
 		loss ='categorical_crossentropy') 
 ae.fit(X_train, X_train, batch_size = 64, epochs = 10) 
